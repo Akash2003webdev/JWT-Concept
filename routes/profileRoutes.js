@@ -11,7 +11,7 @@ const app = express();
 const loginLimiter = app.use(
   rateLimit({
     windowMs: 20 * 60 * 1000, //15mins
-    max: 5,
+    max: 15,
     message: "Too many requests, try again later",
   })
 );
@@ -46,7 +46,7 @@ function verifyToken(req, res, next) {
 
   next();
 }
- 
+
 //1st....
 
 router.post("/api/register", async (req, res) => {
@@ -77,7 +77,7 @@ router.post("/api/register", async (req, res) => {
     res.status(500).json({ message: `something went wrong ${error}` });
   }
 });
- 
+
 //2nd....
 
 router.post("/api/login", loginLimiter, async (req, res) => {
@@ -97,7 +97,7 @@ router.post("/api/login", loginLimiter, async (req, res) => {
       return res.status(401).json({ message: "invalid password" });
     }
 
-// 3
+    // 3
 
     const accessToken = jwt.sign(
       { id: profile._id, role: profile.role },
@@ -110,16 +110,18 @@ router.post("/api/login", loginLimiter, async (req, res) => {
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "2d" }
     );
-//4
+    //4
     profile.refreshToken = refreshToken;
     await profile.save();
-    res.status(200).json({ accessToken, refreshToken, role: profile.role });
+    res
+      .status(200)
+      .json({ id: profile._id, accessToken, refreshToken, role: profile.role });
   } catch (error) {
     res.status(500).json({ message: `something went wrong ${error}` });
   }
 });
 
- //5
+//5
 router.get("/", verifyToken, async (req, res) => {
   console.log("get");
   try {
