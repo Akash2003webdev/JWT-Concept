@@ -11,7 +11,7 @@ const app = express();
 const loginLimiter = app.use(
   rateLimit({
     windowMs: 20 * 60 * 1000, //15mins
-    max: 15,
+    max: 50,
     message: "Too many requests, try again later",
   })
 );
@@ -47,8 +47,6 @@ function verifyToken(req, res, next) {
   next();
 }
 
-//1st....
-
 router.post("/api/register", async (req, res) => {
   try {
     const { name, email, role, adminCode, imageUrl, password } = req.body;
@@ -78,8 +76,6 @@ router.post("/api/register", async (req, res) => {
   }
 });
 
-//2nd....
-
 router.post("/api/login", loginLimiter, async (req, res) => {
   console.log("trigg");
   try {
@@ -97,8 +93,6 @@ router.post("/api/login", loginLimiter, async (req, res) => {
       return res.status(401).json({ message: "invalid password" });
     }
 
-    // 3
-
     const accessToken = jwt.sign(
       { id: profile._id, role: profile.role },
       process.env.JWT_SECRET,
@@ -110,7 +104,7 @@ router.post("/api/login", loginLimiter, async (req, res) => {
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "2d" }
     );
-    //4
+
     profile.refreshToken = refreshToken;
     await profile.save();
     res
@@ -121,7 +115,6 @@ router.post("/api/login", loginLimiter, async (req, res) => {
   }
 });
 
-//5
 router.get("/", verifyToken, async (req, res) => {
   console.log("get");
   try {
@@ -198,6 +191,30 @@ router.post("/refresh", async (req, res) => {
       { expiresIn: "15min" }
     );
     res.status(200).json({ accessToken: newAccesToken });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// GET a single profile by ID — Only admin can access
+router.get("/profile/:id", verifyToken, async (req, res) => {
+  try {
+    // Ensure only admin can access
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({
+        message: `access denied because you are a ${req.profile.role}`,
+      });
+    }
+
+    const profile = await profiles.findById(
+      req.params.id,
+      "-password -refreshToken"
+    );
+    if (!profile) {
+      return res.status(404).json({ message: "profile not found" });
+    }
+
+    res.status(200).json(profile);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
